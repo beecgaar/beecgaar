@@ -104,7 +104,7 @@ export default function Dashboard({ supabase, shirkadId, T, lang, lacagUnit, onN
         </div>
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}>
+      <div className="grid-2col">
         {/* Recent sales */}
         <div className="card">
           <div className="card-header">

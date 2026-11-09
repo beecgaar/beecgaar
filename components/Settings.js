@@ -8,11 +8,11 @@ export default function Settings({ supabase, shirkadId, userInfo, T, lang, onLan
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState("");
-  const [tab, setTab] = useState("store"); // store, users, account
+  const [tab, setTab] = useState("store");
   const [store, setStore] = useState({ magac: "", taleefon: "", email: "", cinwaan: "", lacag_unit: "$", luqad: "so" });
   const [users, setUsers] = useState([]);
   const [showUserForm, setShowUserForm] = useState(false);
-  const [userForm, setUserForm] = useState({ magac: "", email: "", taleefon: "", doorka: "cashier" });
+  const [userForm, setUserForm] = useState({ magac: "", email: "", password: "", taleefon: "", doorka: "cashier" });
   const [pwForm, setPwForm] = useState({ current: "", newPw: "", confirm: "" });
 
   useEffect(() => {
@@ -42,6 +42,51 @@ export default function Settings({ supabase, shirkadId, userInfo, T, lang, onLan
     setMsg(T("success"));
     if (store.luqad !== lang) onLangChange(store.luqad);
     setTimeout(() => setMsg(""), 2000);
+  };
+
+  // Add new user to the store
+  const addUser = async () => {
+    if (!userForm.magac || !userForm.email || !userForm.password) {
+      setMsg(lang === "so" ? "Magaca, email-ka iyo password-ka waa lagama maarmaan" : "Name, email and password are required");
+      return;
+    }
+    if (userForm.password.length < 6) {
+      setMsg(lang === "so" ? "Password waa inay ahaataa 6+ xaraf" : "Password must be 6+ characters");
+      return;
+    }
+    setSaving(true); setMsg("");
+
+    // 1. Create auth user via Supabase
+    const { data: authData, error: authErr } = await supabase.auth.signUp({
+      email: userForm.email,
+      password: userForm.password,
+    });
+
+    if (authErr) {
+      setSaving(false);
+      setMsg(authErr.message);
+      return;
+    }
+
+    // 2. Add to isticmaalayaal table
+    const { error: dbErr } = await supabase.from("isticmaalayaal").insert({
+      auth_id: authData.user.id,
+      shirkad_id: shirkadId,
+      magac: userForm.magac,
+      email: userForm.email,
+      taleefon: userForm.taleefon || null,
+      doorka: userForm.doorka,
+      firfircoon: true,
+    });
+
+    setSaving(false);
+    if (dbErr) { setMsg(dbErr.message); return; }
+
+    setMsg(T("success"));
+    setShowUserForm(false);
+    setUserForm({ magac: "", email: "", password: "", taleefon: "", doorka: "cashier" });
+    loadData();
+    setTimeout(() => setMsg(""), 3000);
   };
 
   const changePassword = async () => {
@@ -86,7 +131,7 @@ export default function Settings({ supabase, shirkadId, userInfo, T, lang, onLan
         color: msg === T("success") ? "#166534" : "#991b1b" }}>{msg}</div>}
 
       {/* Tabs */}
-      <div style={{ display: "flex", gap: 4, marginBottom: 20, borderBottom: "2px solid var(--border)", paddingBottom: 0 }}>
+      <div className="settings-tabs" style={{ display: "flex", gap: 4, marginBottom: 20, borderBottom: "2px solid var(--border)", paddingBottom: 0, overflowX: "auto" }}>
         {tabs.map(t => (
           <button key={t.key}
             style={{
@@ -94,7 +139,7 @@ export default function Settings({ supabase, shirkadId, userInfo, T, lang, onLan
               fontWeight: tab === t.key ? 700 : 400, fontSize: ".92rem",
               borderBottom: tab === t.key ? "2px solid var(--accent)" : "2px solid transparent",
               color: tab === t.key ? "var(--accent)" : "var(--ink-secondary)",
-              marginBottom: -2
+              marginBottom: -2, whiteSpace: "nowrap"
             }}
             onClick={() => setTab(t.key)}>
             {t.icon} {t.label}
@@ -116,7 +161,7 @@ export default function Settings({ supabase, shirkadId, userInfo, T, lang, onLan
                 <input style={inp} type="email" value={store.email} onChange={e => setStore({...store, email: e.target.value})} /></div>
               <div><label style={lbl}>{T("address")}</label>
                 <input style={inp} value={store.cinwaan} onChange={e => setStore({...store, cinwaan: e.target.value})} /></div>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+              <div className="settings-currency-row" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
                 <div><label style={lbl}>{lang === "so" ? "Lacag" : "Currency"}</label>
                   <select style={inp} value={store.lacag_unit} onChange={e => setStore({...store, lacag_unit: e.target.value})}>
                     <option value="$">$ (USD)</option>
@@ -143,6 +188,9 @@ export default function Settings({ supabase, shirkadId, userInfo, T, lang, onLan
         <div className="card">
           <div className="card-header">
             <h2>{T("users")}</h2>
+            <button className="btn btn-primary btn-sm" onClick={() => setShowUserForm(true)}>
+              + {lang === "so" ? "User cusub" : "Add User"}
+            </button>
           </div>
           <div className="card-body flush">
             {users.length === 0 ? (
@@ -190,6 +238,43 @@ export default function Settings({ supabase, shirkadId, userInfo, T, lang, onLan
                 ))}
               </tbody></table></div>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* Add User Modal */}
+      {showUserForm && (
+        <div className="modal-overlay" onClick={() => setShowUserForm(false)}>
+          <div className="modal" onClick={e => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3>{lang === "so" ? "User cusub ku dar" : "Add New User"}</h3>
+              <button className="btn btn-ghost btn-sm" onClick={() => setShowUserForm(false)}>✕</button>
+            </div>
+            <div className="modal-body">
+              <div style={{ display: "grid", gap: 14 }}>
+                <div><label style={lbl}>{lang === "so" ? "Magaca" : "Name"} *</label>
+                  <input style={inp} value={userForm.magac} onChange={e => setUserForm({...userForm, magac: e.target.value})} placeholder={lang === "so" ? "Magaca buuxa" : "Full name"} /></div>
+                <div><label style={lbl}>Email *</label>
+                  <input style={inp} type="email" value={userForm.email} onChange={e => setUserForm({...userForm, email: e.target.value})} placeholder="user@example.com" /></div>
+                <div><label style={lbl}>Password *</label>
+                  <input style={inp} type="password" value={userForm.password} onChange={e => setUserForm({...userForm, password: e.target.value})} placeholder={lang === "so" ? "Ugu yaraan 6 xaraf" : "At least 6 characters"} /></div>
+                <div><label style={lbl}>{T("phone")}</label>
+                  <input style={inp} value={userForm.taleefon} onChange={e => setUserForm({...userForm, taleefon: e.target.value})} placeholder="061..." /></div>
+                <div><label style={lbl}>{lang === "so" ? "Doorka" : "Role"}</label>
+                  <select style={inp} value={userForm.doorka} onChange={e => setUserForm({...userForm, doorka: e.target.value})}>
+                    <option value="admin">Admin</option>
+                    <option value="manager">Manager</option>
+                    <option value="cashier">Cashier</option>
+                    <option value="viewer">Viewer</option>
+                  </select></div>
+              </div>
+            </div>
+            <div className="modal-footer">
+              <button className="btn btn-secondary" onClick={() => setShowUserForm(false)}>{T("cancel")}</button>
+              <button className="btn btn-primary" onClick={addUser} disabled={saving}>
+                {saving ? "..." : (lang === "so" ? "Ku dar" : "Add User")}
+              </button>
+            </div>
           </div>
         </div>
       )}

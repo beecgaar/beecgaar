@@ -112,7 +112,7 @@ export default function Reports({ supabase, shirkadId, T, lang, lacagUnit }) {
         </div>
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}>
+      <div className="grid-2col">
         {/* Top selling products */}
         <div className="card">
           <div className="card-header">
@@ -176,7 +176,7 @@ export default function Reports({ supabase, shirkadId, T, lang, lacagUnit }) {
           <h2>{lang === "so" ? "Koobka Deymaha" : "Debt Summary"}</h2>
         </div>
         <div className="card-body">
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}>
+          <div className="grid-2col">
             <div style={{ padding: 20, borderRadius: 12, background: "rgba(234, 179, 8, .08)", textAlign: "center" }}>
               <div style={{ fontSize: ".88rem", color: "var(--ink-muted)", marginBottom: 4 }}>
                 {lang === "so" ? "Macaamiishu nagu leeyihiin" : "Customers owe us"}

@@ -130,6 +130,47 @@ export default function Sales({ supabase, shirkadId, userId, T, lang, lacagUnit 
     setViewSale(sale);
   };
 
+  // PDF generation for sales invoice
+  const printSale = (sale, items) => {
+    const custName = sale.macaamiisha?.magac || (lang === "so" ? "Lacag caddaan" : "Walk-in");
+    const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>${sale.lambarka}</title>
+    <style>*{margin:0;padding:0;box-sizing:border-box}body{font-family:Arial,sans-serif;padding:20px;max-width:800px;margin:0 auto;color:#111}
+    .header{text-align:center;margin-bottom:24px;padding-bottom:16px;border-bottom:2px solid #0d9488}
+    .header h1{font-size:24px;color:#0d9488;margin-bottom:4px}
+    .header p{font-size:13px;color:#666}
+    .info{display:flex;justify-content:space-between;margin-bottom:20px;font-size:14px}
+    .info div{line-height:1.6}
+    .info strong{color:#333}
+    table{width:100%;border-collapse:collapse;margin-bottom:20px}
+    th{background:#f0fdf4;padding:10px 12px;text-align:left;font-size:12px;text-transform:uppercase;color:#555;border-bottom:2px solid #d1d5db}
+    td{padding:10px 12px;border-bottom:1px solid #e5e7eb;font-size:14px}
+    .num{text-align:right}
+    .total-row{background:#f9fafb;font-weight:700;font-size:15px}
+    .footer{text-align:center;margin-top:30px;padding-top:16px;border-top:1px solid #e5e7eb;font-size:12px;color:#999}
+    @media print{body{padding:10px}}</style></head><body>
+    <div class="header"><h1>Beecgaar</h1><p>${lang === "so" ? "Rasiidh / Invoice" : "Sales Invoice"}</p></div>
+    <div class="info">
+      <div><strong>${lang === "so" ? "Lambarka:" : "Invoice #:"}</strong> ${sale.lambarka}<br>
+      <strong>${lang === "so" ? "Taariikh:" : "Date:"}</strong> ${new Date(sale.taariikh).toLocaleDateString()}<br>
+      <strong>${T("customer")}:</strong> ${custName}</div>
+      <div style="text-align:right"><strong>${T("total")}:</strong> ${lacag(sale.wadarta, lacagUnit)}<br>
+      <strong>${T("paid")}:</strong> ${lacag(sale.la_bixiyay, lacagUnit)}<br>
+      <strong>${T("debt")}:</strong> ${lacag(sale.deyn, lacagUnit)}<br>
+      <strong>${lang === "so" ? "Hab lacag:" : "Payment:"}</strong> ${sale.hab_lacag}</div>
+    </div>
+    <table><thead><tr><th>#</th><th>${T("product_name")}</th><th class="num">${T("quantity")}</th><th class="num">${T("selling_price")}</th><th class="num">${T("total")}</th></tr></thead><tbody>
+    ${items.map((it, i) => `<tr><td>${i + 1}</td><td>${it.alaabta?.magac || "-"}</td><td class="num">${it.tirada}</td><td class="num">${lacag(it.qiimaha, lacagUnit)}</td><td class="num">${lacag(it.wadarta, lacagUnit)}</td></tr>`).join("")}
+    <tr class="total-row"><td colspan="4" class="num">${T("total")}</td><td class="num">${lacag(sale.wadarta, lacagUnit)}</td></tr>
+    </tbody></table>
+    ${sale.qoraal ? `<p style="font-size:13px;color:#666"><strong>${lang === "so" ? "Qoraal:" : "Note:"}</strong> ${sale.qoraal}</p>` : ""}
+    <div class="footer">Beecgaar - ${lang === "so" ? "Nidaamka Maaraynta Dukaanka" : "Store Management System"}</div>
+    </body></html>`;
+    const w = window.open("", "_blank");
+    w.document.write(html);
+    w.document.close();
+    w.print();
+  };
+
   const filteredProds = products.filter(p => p.magac.toLowerCase().includes(prodSearch.toLowerCase()));
   const filteredSales = sales.filter(s =>
     (s.lambarka || "").toLowerCase().includes(search.toLowerCase()) ||
@@ -142,9 +183,10 @@ export default function Sales({ supabase, shirkadId, userId, T, lang, lacagUnit 
   if (viewSale) {
     return (
       <div className="page fade-in">
-        <button className="btn btn-ghost" onClick={() => setViewSale(null)} style={{ marginBottom: 16 }}>
-          ← {T("back")}
-        </button>
+        <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 16 }}>
+          <button className="btn btn-ghost" onClick={() => setViewSale(null)}>← {T("back")}</button>
+          <button className="btn btn-secondary" onClick={() => printSale(viewSale, saleItems)}>🖨️ PDF</button>
+        </div>
         <div className="card">
           <div className="card-header">
             <h2>{viewSale.lambarka}</h2>
@@ -153,7 +195,7 @@ export default function Sales({ supabase, shirkadId, userId, T, lang, lacagUnit 
             </span>
           </div>
           <div className="card-body">
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 20 }}>
+            <div className="detail-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 20 }}>
               <div><span style={lbl}>{T("customer")}</span><strong>{viewSale.macaamiisha?.magac || (lang === "so" ? "Lacag caddaan" : "Walk-in")}</strong></div>
               <div><span style={lbl}>{lang === "so" ? "Taariikh" : "Date"}</span><strong>{new Date(viewSale.taariikh).toLocaleString()}</strong></div>
               <div><span style={lbl}>{T("total")}</span><strong>{lacag(viewSale.wadarta, lacagUnit)}</strong></div>
@@ -200,7 +242,7 @@ export default function Sales({ supabase, shirkadId, userId, T, lang, lacagUnit 
         {msg && <div style={{ marginBottom: 12, padding: "10px 16px", borderRadius: 8,
           background: msg === T("success") ? "#dcfce7" : "#fee2e2",
           color: msg === T("success") ? "#166534" : "#991b1b" }}>{msg}</div>}
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}>
+        <div className="grid-2col">
           {/* Products */}
           <div className="card">
             <div className="card-header">
